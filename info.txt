@@ -1,0 +1,417 @@
+
+note: there are TWO dumps of this game in goodgba..... not sure about the origins of them
+
+"Higurashi no Naku Koro ni (PD).gba", CRC32 3C2F7D28, SHA-1 735FF1AE996AACF27C5E16C9E55652EC0D03F2E1
+"Higurashi no Naku Koro ni (PD) [a1].gba", CRC32 03A81C68, SHA-1 7AD95333F2C62031BB2FB7C86065BC094A715E05
+
+dump 1 has a bad header, the nintendo logo and complement check are 0. a real gba would not run it
+dump 2's header is good
+
+following header stuff isn't really "wrong", but may be interesting
+both dumps are internally named "HIGURASHIGBA"
+dump 1's game code is "HGRS" (short for "higurashi"), dump 2's is "AISJ" (game software, code "IS", japan)
+dump 1's maker code is "IC" (inside-cap), dump 2's is "DJ" (?)
+dump 1 is marked as version 1, dump 2 is version 0
+
+the engine code ($80000c0-$8011f0b) is identical in both, but the script is totally different
+
+dump 1 is protected, and requires a button input passcode to play
+dump 2 is not protected - the protection code still exists but is never called
+both seem to be full games, with the first four arcs
+
+kill the emulator detection by patching $8007150 with mov r0,#0; bx lr (bytes $00,$20,$70,$47)
+kill the rom verification by patching $800b368 with the same code
+
+since the engine code is the same, and the entire script needs to be reconstructed to translate it anyway, it should be easy to make a patch that works on either dump- just repair the header, kill the protection, and rewrite the script data
+
+
+
+
+
+
+----- sram info -------
+$0000-$000f: same as $a0-$af of rom header
+$0010-$0013: same as sram verification key in script header
+$0014-$0017: absolute location of second script offset table
+$0018-$001b: absolute location of third script offset table
+$001c-$001f: engine's sram verification key ($00010009)
+^^^^ if any of these are wrong on boot, the entire sram will be cleared and reinitialized ^^^^
+
+$0020-$011f: script global variable space
+
+$0120-$012b: game configuration
+
+$01fc-$01ff: current pseudo-random number (initialized to seed in script header)
+
+save slots start at $0200, and each one is $0800 bytes long
+there are 9 slots, but the last one is reserved for autosaves
+
+
+
+
+
+-------- script info ---------
+all script values are little endian. a "byte" is 8 bits, a "halfword" is 16 bits, and a "word" is 32 bits
+
+
+
+there may be $200 script variables
+
+variables $000-$0ff are save-specific signed bytes, from $3002288-$3002387
+variables $100-$1ff are global unsigned bytes, from $0020-$011f in sram
+
+$200-$2ff indicate indirect access, for example:
+if variable $20 has a value of $40,
+and variable $10 has a value of $20,
+trying to access variable $210 will retrieve $20, then the value in variable $20 ($40) as the final value
+
+avoid writing to variables 0-4, the engine uses them
+variable 0 is generally used as an error indicator/return value
+
+it is possible to access two contiguous variables and interpret their contents as a little-endian 16 bit value, commands which do this will be marked
+
+
+
+
+
+
+
+
+
+the script header starts at $8011f0c, and all offsets are relative to here
+
+script header format:
+word - offset to label offset list ($24)
+word - offset to ? ($16e728)
+word - offset to file offset list ($25c724)
+word - sram verification key ($b98d48e2)
+word - initial prng seed ($e7124548)
+word - offset to $ffffffff-terminated useless table ($1781f8)
+word - offset to ? ($1781fc)
+word - offset to ? ($252b7c)
+word - offset to ? ($252e04)
+
+
+
+
+
+
+the main loop of the program starts at $8009974. the very beginning of the script's program data is at $80123f4
+
+script codes:
+$00 - wait for user input, then clear all text onscreen
+$0d - handle script command
+$0e - wait for user input
+$0f - newline
+everything else is the char to print? seems like custom encoding
+
+script commands are done using a massive code offset table at $8009cd0-$8009e75
+it means there could be $d3 commands, but a lot of them are no-ops (offset $02aa)
+only the meaningful ones will be detailed here
+
+$00 - delete autosave and reset
+$01 - delete autosave and define reset label here
+$02 - delete all saved games
+$03 - allow/disallow skipping
+    byte - zero to allow, nonzero to disallow
+$04 - configure menu
+    null-terminated string - options? only the first char seems to matter, if it's zero there is no save/load
+$05 - show load game menu, and reset
+
+$06 - return nonzero if rom checksum fails, 0 if not
+$07 - return 1 if running on emulator, 0 if not
+$08 - wait for keypress and return the pressed key
+    (0=a, 1=b, 2=sel, 3=sta, 4=right, 5=left, 6=up, 7=down, 8=r, 9=l)
+$09 - generate 32-bit protection key in variables 1-4
+
+$0a - ?? initialize character portrait table
+    byte - ?? $3001d78 value
+$0b - ?? set $3001f74
+    byte - value
+
+
+
+$10 - set background and clear all character portraits
+    half - file id
+$11 - set background and clear all character portraits
+    byte - variable of 16-bit file id
+$12 - set background and clear all character portraits
+    half - solid color, in gba palette entry format
+
+$13 - load character portrait
+    byte -  bits 6-7: parameter 1 type
+            bits 4-5: parameter 2 type
+                        0: none, use 0
+                        1: absolute byte value
+                        2: absolute half value
+                        3: byte reference to byte variable value
+            bits 0-2: foreground layer
+    half - file id of image. $ffff means none
+    half - file id of transparency. $ffff means image is 100% opaque
+    parameter 1 - x position (0 is centered, negative moves left, positive moves right)
+    parameter 2 - y position (0 means the bottom of the image is at the bottom of the screen, negative moves up, positive moves down)
+$14 - load character portrait
+    byte -  bits 6-7: parameter 1 type
+            bits 4-5: parameter 2 type
+                        0: none, use 0
+                        1: absolute byte value
+                        2: absolute half value
+                        3: byte reference to byte variable value
+            bits 0-2: foreground layer
+    byte - variable of 16-bit file id of image. $ffff means none
+    byte - variable of 16-bit file id of transparency. $ffff means image is 100% opaque
+    parameter 1 - x position (0 is centered, negative moves left, positive moves right)
+    parameter 2 - y position (0 means the bottom of the image is at the bottom of the screen, negative moves up, positive moves down)
+$15 - clear character portrait
+    byte - layer
+$16 - clear all character portraits
+
+$17 - hide text and repaint screen
+    byte - effect id
+    byte - effect time
+
+$18 - ??? set $3002d98
+    byte -  0: value is 0
+            1: value is $18000
+            2: value is $58000 | next halfword
+    half, ONLY IF previous byte was 2
+$19 - ??? set bool $3001f64
+    byte - value
+
+$1a - hide character portrait
+    byte - layer
+$1b - unhide character portrait
+    byte - layer
+
+$1c - hide text and repaint screen with mask file
+    byte - effect id
+    byte - effect time
+    half - mask file id
+$1d - hide text and repaint screen with mask file
+    byte - effect id
+    byte - effect time
+    byte - variable of 16-bit mask file id
+
+$1e - reposition character portrait
+    byte -  bit 7: zero to add to coords, nonzero to set
+            bits 0-2: layer
+    half - x position add/set value: if < $8000, the lower 15 bits are the signed value, otherwise the lower 8 bits are a variable reference
+    half - y position add/set value: if < $8000, the lower 15 bits are the signed value, otherwise the lower 8 bits are a variable reference
+
+
+
+NOTE: all wait commands return 1 if ended by user input, or 0 if the timer was actually exhausted
+$20 - frame wait, unless skip mode enabled or button press occurs
+    byte - frames to wait / 2
+$21 - frame wait, unless skip mode enabled
+    byte - frames to wait / 2
+$22 - unskippable frame wait
+    byte - frames to wait / 2
+
+$23 - enable gba timer 3 irq, and reset timer counter to 0
+    timer counter is clocked at (16780000 / 1024 / ($10000-$ff5c)) = 99.919 Hz, which is about 10ms/clock
+$24 - timer wait, unless skip mode enabled or button press occurs
+    half - target timer counter value
+$25 - timer wait, unless skip mode enabled
+    half - target timer counter value
+$26 - unskippable timer wait
+    half - target timer counter value
+
+$27 - ?? set $3001e80
+    byte - value
+$28 - set text display background fade speed
+    byte - frames in between each fade level (0 for instant transition)
+$29 - override user's text speed
+    byte - new text speed ($ff to go back to normal)
+$2a - make text progress automatically
+    byte - frames to wait after text done (0 to disable)
+$2b - wait for a variety of conditions to be false
+    byte - condition to check
+            0: wait until no music playing
+            1: wait until no sound effect playing on channel 0
+            2: wait until no sound effect playing on channel 1
+            3: ?
+            4: ?
+    byte - wait mode
+            0: allow skipping and button presses to interrupt
+            1: only allow skipping to interrupt
+            2: unskippable
+
+
+
+$30 - play music
+    half - file id
+    byte - zero for no loop, nonzero for loop
+$31 - play music
+    byte - variable of 16-bit file id
+    byte - zero for no loop, nonzero for loop
+$32 - backup sound state?
+$33 - stop music
+$34 - wait for music to end
+$35 - ??
+    half - file id
+    byte - ?
+$35 - ??
+    byte - variable of 16-bit file id
+    byte - ?
+$36 - ???
+    args unknown
+$37 - stop all sound
+$39 - play a movie
+    half - file id
+    byte - zero for no loop, nonzero for loop
+$3a - play a movie
+    byte - variable of 16-bit file id
+    byte - zero for no loop, nonzero for loop
+$3b - play sound effect
+    half - file id
+    byte - zero for no loop, nonzero for loop
+$3c - play sound effect
+    byte - variable of 16-bit file id
+    byte - zero for no loop, nonzero for loop
+$3d - stop sfx channel(s)
+    byte - 0 for both, 1 for channel 0, 2 for channel 1
+$3e - return 1 if music is playing, else 0
+$3f - return 1 if sound effect is playing, else 0
+    byte - sfx channel
+
+
+
+$41 - x-wise screen wave
+    byte - time in frames
+    byte - wave speed
+$42 - y-wise screen wave
+    byte - time in frames
+    byte - wave speed
+$43 - ?
+
+$4a - screen shake
+    byte - x-wise amplitude
+    byte - y-wise amplitude
+    byte - time in "shake frames"
+    byte - frames per shake frame
+$4b - set cursor icon
+    half - file id
+
+
+
+$50 - constant -> variable transfer
+    half - variable number
+    byte - value
+$51 - 16-bit constant -> variable transfer
+    half - variable number
+    half - value
+$52 - add constant to variable
+    half - variable number
+    byte - value
+$53 - increment variable
+    (this command will do nothing if incrementing would result in signed overflow)
+    half - destination variable
+$54 - decrement variable
+    (this command will do nothing if decrementing would result in signed overflow)
+    half - destination variable
+$55 - clear variables $000-$0ff
+$56 - clear variables $100-$1ff
+$57 - variable -> variable transfer
+    half - destination variable
+    half - source variable
+$58 - generate random number
+    half - destination variable
+    byte - min value
+    byte - max value
+$59 - perform bitwise operation on variable
+    half - variable of lhs
+    byte - 0=and, 1=or, 2=xor, 3=left shift, 4=right shift
+    byte - rhs
+$5a - negate variable
+    half - variable number
+$5b - ?????? whatever this is for, it accesses the useless table in the script header, so can't be used
+    half - variable number
+$5c - add v2 to v1
+    half - variable number 1
+    half - variable number 2
+$5d - subtract v2 from v1
+    half - variable number 1
+    half - variable number 2
+$5e - perform bitwise operation on v1
+    half - variable of lhs
+    byte - 0=and, 1=or, 2=xor, 3=left shift, 4=right shift
+    half - variable of rhs
+$5f - generate random number
+    half - destination variable
+    half - variable of min value
+    half - variable of max value
+
+
+
+$81 - goto
+    half - if < $8000, label id, otherwise lower 15 bits is a signed distance from the start of the goto instruction
+$82 - conditionally goto
+    comparison data - see comparison reference
+    half - if < $8000, label id, otherwise lower 15 bits is a signed distance from the start of the goto instruction
+$83 - gosub (can be nested up to 64 times)
+    half - label id
+$84 - conditionally gosub
+    comparison data - see comparison reference
+    half - label id
+$85 - return from gosub
+
+$8f - conditionally return from gosub
+    comparison data - see comparison reference
+
+
+$c0 - hard reset back to bios
+$c1 - enter sleep mode (bugged, don't use)
+
+
+$d2 - hide text and repaint screen with effect parameter
+    byte - effect id
+    byte - effect time
+    byte - effect parameter
+
+
+
+SCRIPT COMPARISONS:
+some commands allow you to act depending on if a comparison of two values evaluates as true. here is the format of the comparison data:
+half - upper 4 bits, comparison type:
+            0: lhs == rhs
+            1: lhs != rhs
+            2: lhs < rhs
+            3: lhs <= rhs
+            4: lhs > rhs
+            5: lhs >= rhs
+            6: test bit rhs of lhs, true if clear
+            7: test bit rhs of lhs, true if set
+       lower 12 bits, variable of lhs
+half - if < $8000, variable number of rhs, otherwise, lower 8 bits are the actual value of rhs
+
+
+
+EFFECTS:
+whenever you repaint the display, you can use an effect to make a smoother transition between the previous display and the next. here are all ids:
+
+0: no effect, instant transition
+1: same as 14
+2: scroll in from top
+3: scroll in from bottom
+4: scroll in from left
+5: scroll in from right (BUGGY, DO NOT USE)
+6: downward shutter
+7: upward shutter
+8: rightward shutter
+9: leftward shutter
+10: downward curtain
+11: upward curtain
+12: rightward curtain
+13: leftward curtain
+14: basic crossfade
+15: weird square-ish crossfade
+16: black out display, then fade to normal
+17: white out display, then fade to normal
+18: fade to black, then show new
+19: fade to white, then show new
+20: downward wipe
+21: upward wipe
+22: rightward wipe
+23: leftward wipe
+
