@@ -1,4 +1,11 @@
 
+
+unless mentioned, all values are little endian. a "byte" is 8 bits, a "half(word)" is 16 bits, and a "word" is 32 bits
+all hexadecimal numbers will be prefixed with $, and all ranges are inclusive
+
+
+
+
 note: there are TWO dumps of this game in goodgba..... not sure about the origins of them
 
 "Higurashi no Naku Koro ni (PD).gba", CRC32 3C2F7D28, SHA-1 735FF1AE996AACF27C5E16C9E55652EC0D03F2E1
@@ -29,11 +36,11 @@ since the engine code is the same, and the entire script needs to be reconstruct
 
 
 
------ sram info -------
+--------- sram info -----------
 $0000-$000f: same as $a0-$af of rom header
 $0010-$0013: same as sram verification key in script header
-$0014-$0017: absolute location of second script offset table
-$0018-$001b: absolute location of third script offset table
+$0014-$0017: absolute location of font offset list
+$0018-$001b: absolute location of file offset list
 $001c-$001f: engine's sram verification key ($00010009)
 ^^^^ if any of these are wrong on boot, the entire sram will be cleared and reinitialized ^^^^
 
@@ -51,9 +58,6 @@ there are 9 slots, but the last one is reserved for autosaves
 
 
 -------- script info ---------
-all script values are little endian. a "byte" is 8 bits, a "halfword" is 16 bits, and a "word" is 32 bits
-
-
 
 there may be $200 script variables
 
@@ -82,21 +86,21 @@ the script header starts at $8011f0c, and all offsets are relative to here
 
 script header format:
 word - offset to label offset list ($24)
-word - offset to ? ($16e728)
+word - offset to font pattern data ($16e728)
 word - offset to file offset list ($25c724)
 word - sram verification key ($b98d48e2)
 word - initial prng seed ($e7124548)
 word - offset to $ffffffff-terminated useless table ($1781f8)
-word - offset to ? ($1781fc)
-word - offset to ? ($252b7c)
-word - offset to ? ($252e04)
+word - offset to music sample offset list ($1781fc)
+word - offset to system message offset list ($252b7c)
+word - offset to unknown sound-related data ($252e04)
 
 
 
 
 
 
-the main loop of the program starts at $8009974. the very beginning of the script's program data is at $80123f4
+the first offset in the label list is the starting point of the script
 
 script codes:
 $00 - wait for user input, then clear all text onscreen
@@ -115,19 +119,21 @@ $02 - delete all saved games
 $03 - allow/disallow skipping
     byte - zero to allow, nonzero to disallow
 $04 - configure menu
-    null-terminated string - options? only the first char seems to matter, if it's zero there is no save/load
+    null-terminated string - options? only the first char seems to matter, it decides which save/load messages to use?
 $05 - show load game menu, and reset
 
 $06 - return nonzero if rom checksum fails, 0 if not
 $07 - return 1 if running on emulator, 0 if not
 $08 - wait for keypress and return the pressed key
     (0=a, 1=b, 2=sel, 3=sta, 4=right, 5=left, 6=up, 7=down, 8=r, 9=l)
+    byte - ?
 $09 - generate 32-bit protection key in variables 1-4
 
 $0a - ?? initialize character portrait table
     byte - ?? $3001d78 value
-$0b - ?? set $3001f74
-    byte - value
+
+$0b - enable/disable pause menu
+    byte - nonzero to enable, zero to disable
 
 
 
@@ -197,10 +203,15 @@ $1e - reposition character portrait
             bits 0-2: layer
     half - x position add/set value: if < $8000, the lower 15 bits are the signed value, otherwise the lower 8 bits are a variable reference
     half - y position add/set value: if < $8000, the lower 15 bits are the signed value, otherwise the lower 8 bits are a variable reference
+$1f - swap character portraits
+    byte -  bit 7: swap positions
+            bit 6: swap images
+            bits 3-5: layer 1
+            bits 0-2: layer 2
 
 
 
-NOTE: all wait commands return 1 if ended by user input, or 0 if the timer was actually exhausted
+NOTE: all wait commands return 1 if ended by user input, or 0 if the real end-condition actually occurred
 $20 - frame wait, unless skip mode enabled or button press occurs
     byte - frames to wait / 2
 $21 - frame wait, unless skip mode enabled
@@ -265,15 +276,27 @@ $3a - play a movie
     byte - zero for no loop, nonzero for loop
 $3b - play sound effect
     half - file id
-    byte - zero for no loop, nonzero for loop
+    byte -  bits 7-4: channel
+            bits 3-0:
+                0: play sample once
+                1: loop sample
+                2: skippable wait until sample finishes
+                3: button-end-able wait until sample finishes
 $3c - play sound effect
     byte - variable of 16-bit file id
-    byte - zero for no loop, nonzero for loop
+    byte -  bits 7-4: channel
+            bits 3-0:
+                0: play sample once
+                1: loop sample
+                2: skippable wait until sample finishes
+                3: button-end-able wait until sample finishes
 $3d - stop sfx channel(s)
     byte - 0 for both, 1 for channel 0, 2 for channel 1
 $3e - return 1 if music is playing, else 0
-$3f - return 1 if sound effect is playing, else 0
-    byte - sfx channel
+$3f - return 1 if sfx is playing, else 0
+    byte -  0: ??? check $3001f00
+            1: channel 0
+            2: channel 1
 
 
 
@@ -284,6 +307,23 @@ $42 - y-wise screen wave
     byte - time in frames
     byte - wave speed
 $43 - ?
+$44 - ?
+$45 - set text color
+    byte - color
+        0: user-definable color (if it's never specified, black)
+        1: white
+        2: red
+        3: green
+        4: blue
+        5: yellow
+        6: magenta
+        7: cyan
+$46 - set user-definable color
+    half - color in gba palette format
+$47 - set game mode
+    0: nvl
+    1: nvl with no background fades on new text, and outlined instead of shadowed text
+    2: adv
 
 $4a - screen shake
     byte - x-wise amplitude
@@ -354,7 +394,7 @@ $83 - gosub (can be nested up to 64 times)
 $84 - conditionally gosub
     comparison data - see comparison reference
     half - label id
-$85 - return from gosub
+$85 - return from gosub (attempting to return outside of a subroutine will cause a reset)
 
 $8f - conditionally return from gosub
     comparison data - see comparison reference
@@ -414,4 +454,105 @@ whenever you repaint the display, you can use an effect to make a smoother trans
 21: upward wipe
 22: rightward wipe
 23: leftward wipe
+
+
+
+
+
+
+
+----------- sound info ------------
+
+the internal output sample rate is 16780000 / ($10000 - $fce2) = 21028Hz
+despite enabling both sound fifos, only fifo A is actually used, so sound can only be mono
+
+music may use the following channels:
+4 pitchable "melodic" sample channels (internally 0-3)
+2 non-pitchable "percussive" sample channels (internally 4-5)
+4 gb-compatible sound channels
+
+there are two sfx-only non-pitchable sample channels
+
+
+
+music timing operates on "ticks", which is based on the system vblank rate (about 59.737Hz)
+timing generally works by adding a "speed" value to a running accumulator every vblank, and when it overflows past $10000, that's a tick
+so, given the speed value, the formula to calculate the tick rate is 59.737 * (speed/$10000) Hz
+
+
+
+
+music data header:
+half - offset to music init data
+half - ?
+word - music tick speed
+word - ?
+
+music init data?:
+$02 - end
+$10-$5f - do/skip? sample channel command
+$60-$7f - set gb-compatible sound register
+    half - value
+$80 - set gb-compatible sound panning
+    half -  lower 8 bits: unused
+            upper 8 bits: same as upper 8 bits of SOUNDCNT_L
+$81 - set wave channel wave data
+    $20 bytes - wave data
+$82-$83 - set percussion samples for channel 4/5
+    4 bytes - sample ids
+
+the actual music data follows:
+$00 - wait
+    byte - music speed ticks
+$01 - loop
+$02 - loop only if enabled when song was inited
+$03 - set music tick speed
+    24-bit value
+
+$10-$5f - do sample channel command
+    bits 0-2: channel
+    bits 3-6: command
+        (note: for the sake of simplicity we'll call $10-$17 command 0)
+        0: init sample
+            if melodic channel:
+                byte - note ($24 is middle C)
+            if percussive channel:
+                byte - percussion index
+        1: stop sample
+        2: disable volume slide and set volume
+            byte - unsigned volume
+        3: set melodic sample
+            byte - sample id
+        4: change the note, but don't restart the sample
+            byte - note ($24 is middle C)
+        5: disable pitch slide and detune pitch
+            byte - detune value (-$80 is an octave below, $7f is an octave up)
+        6: pitch slide (you can't slide outside of the detune range)
+            byte - initial detune (-$80 is an octave below, $7f is an octave up)
+            word - slide tick speed
+        7: volume slide (trying to slide above $ff will cause distortion)
+            byte - unsigned initial volume
+            word - slide tick speed
+
+$60-$7f - set gb-compatible sound register
+    half - value
+$80 - set gb-compatible sound panning
+    half -  lower 8 bits: unused
+            upper 8 bits: same as upper 8 bits of SOUNDCNT_L
+$81 - set wave channel wave data
+    $20 bytes - wave data
+$82-$83 - set percussion samples for channel 4/5
+    4 bytes - sample ids
+
+
+
+sample list format:
+all offsets are relative to the start of the list
+for each sample:
+    word - offset to sample data
+    word - length of start section of sample (if 0, the entire sample is looped)
+    word - length of loop section of sample (if 0, the sample does not loop)
+    word - sample base rate (not sure what unit, or what note)
+
+sample data is signed 8-bit pcm
 
