@@ -82,18 +82,18 @@ it is possible to access two contiguous variables and interpret their contents a
 
 
 
-the script header starts at $8011f0c, and all offsets are relative to here
+the script header starts at $8011f0c, and all offsets are relative to here unless otherwise specified
 
 script header format:
-word - offset to label offset list ($24)
-word - offset to font pattern data ($16e728)
-word - offset to file offset list ($25c724)
-word - sram verification key ($b98d48e2)
-word - initial prng seed ($e7124548)
-word - offset to $ffffffff-terminated useless table ($1781f8)
-word - offset to music sample offset list ($1781fc)
-word - offset to system message offset list ($252b7c)
-word - offset to unknown sound-related data ($252e04)
+word - offset to label offset list
+word - offset to font pattern data
+word - offset to file offset list
+word - sram verification key
+word - initial prng seed
+word - offset to $ffffffff-terminated useless table
+word - offset to instrument list
+word - offset to system message offset list
+word - offset to unknown sound-related data
 
 
 
@@ -698,9 +698,9 @@ $82-$83 - set percussion samples for channel 4/5
 
 
 
-sample list format:
+instrument list format:
 all offsets are relative to the start of the list
-for each sample:
+for each instrument:
     word - offset to sample data
     word - length of start section of sample (if 0, the entire sample is looped)
     word - length of loop section of sample (if 0, the sample does not loop)
@@ -712,7 +712,10 @@ sample data is signed 8-bit pcm
 
 
 sound effect format:
-..... to do ......
+byte - encoding format?
+byte - ?
+word - length of audio data
+xx bytes - audio data (some kind of ADPCM? silence is encoded as endless $08. sample rate is 21028 / 4 = 5257Hz)
 
 
 

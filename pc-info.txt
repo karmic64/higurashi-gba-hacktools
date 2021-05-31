@@ -1,0 +1,87 @@
+this document details the PC-side converter and formats, see "info.txt" for the GBA side
+this is not intended to be an absolute documentation, i have only looked deeply into what's necessary to take a gba rom, get a script from it, and re-compile it
+
+all values are little endian. data sizes are such:
+word - 2 bytes
+dword - 4 bytes
+
+
+
+the executable is just a shell, all it does is create a temp dir (%Temp%/GCA____.tmp), extract its files to it, run the real executable, wait until it finishes, then clean everything up
+an extractor program is not necessary, just open task manager while it's running to find the files, then copy them somewhere else
+
+
+map of extracted files (only important specific files are listed):
+exe/    - misc tools
+res2/   - resources that cannot be retrieved from the original game CD
+resrin/ - pc-side resources
+minagi.bin  - the game engine part of the ROM
+mint.exe    - script compiler
+rinnr.exe   - main executable
+
+
+minagi.bin is identical to the start of the rom, except the game name is "MiNAGIforADV", code is "MNGA", and version is 0
+
+
+the main exe reads the game CD, converts its files into native mint formats, generates a script and calls mint.exe to compile it
+it is also used after the game is compiled to generate the keycode to enter when the game is run
+to generate the code, the exe looks into your system's network config and account/pc name, and this information is saved in detail in the script. this has the unfortunate side effect of having to regenerate the rom if any of these things happen to change
+in the manual the devs claim that the information stored would allow them to catch anyone who spreads their copy, but that sounds like a bluff to me, considering all the ip addresses it stores are local...
+generated resources are placed in %Temp%/_Rin01, but the folder is wiped on error and when the process finishes, so capturing its contents is not very easy...
+
+
+mint.exe builds the final game from a script file that the main exe creates
+usage: mint <scriptname> <resfolder> <resfolder2> <outname> minayochan
+    scriptname is the name of the generated script file (%Temp%/_Rin01/_stemp.txt)
+    resfolder is the resource folder that was created by the main exe (%Temp%/_Rin01)
+    resfolder2 is the built-in resource folder (the res2 directory)
+    outname is the name of the output rom file
+    minayochan is just the text "minayochan". the tool will fail silently if this is wrong
+
+
+
+
+
+
+
+
+
+
+
+
+MFO format (font):
+dword - amount of chars
+dword - char width
+dword - char height
+dword - length of each char pattern in bytes
+
+xx words - shiftjis char list, in reverse byte order
+
+the rest of the file is the 1bpp pattern data for each char
+
+
+
+
+MGA format (image):
+identical to the image format described in info.txt
+
+
+
+MCR format (???):
+
+
+
+ADP format (sampled audio):
+identical to the sound effect format described in info.txt
+
+
+
+MUS format (sequenced music):
+identical to the music format described in info.txt
+
+
+
+INST format (instruments):
+dword - size of following data
+rest is the same as the instrument list described in info.txt
+
