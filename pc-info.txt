@@ -40,7 +40,457 @@ usage: mint <scriptname> <resfolder> <resfolder2> <outname> minayochan
 
 
 
+---- % command reference
+see info.txt for details on each code
 
+legend:
+
+NUM - a decimal (as in base 10) integer value
+        can start with either '+' or '-' to indicate sign
+
+STR - a string, enclosed in double-quotes
+
+LAB - a label name
+
+VAR - a variable reference
+        "%num", where num is the variable number. must be less than $200
+
+COND - a conditional expression
+        supported types are:
+            NUM/VAR = NUM/VAR
+            NUM/VAR ! NUM/VAR
+            NUM/VAR < NUM/VAR
+            NUM/VAR <= NUM/VAR
+            NUM/VAR > NUM/VAR
+            NUM/VAR >= NUM/VAR
+            NUM/VAR b NUM/VAR
+            NUM/VAR n NUM/VAR
+        the parser does not consider any characters following the operands listed above, so "l !=!@#$%&^ r" is still just "l ! r"
+        rhs of the bit-test conditionals must be 0..7
+
+COL - a color, in #rrggbb format
+        note that the lower 3 bits of each level will be truncated
+            
+
+[thing] indicates an optional parameter
+
+thing/otherthing indicates a series of possible parameters that could be there
+
+thing... indicates that this parameter is repeated until the end of the command
+
+
+
+note: the following commands are still unknown
+%assign_cgflag
+%quick_draw_vbuffer
+%pre_quick_draw_vbuffer
+%special_effect
+%draw_image (this is a hybrid of several opcodes)
+%draw_vbuffer
+%effect_start
+%effect_stop
+%effect_finalize_no_init
+%effect_write32
+%effect_write16
+%effect_wait_time
+%effect_stop_raster
+%effect_start_raster
+%effect_start_raster_theta
+%effect_start_raster_scale
+%effect_start_raster_delta
+%effect_start_scroll
+%effect_start_blend
+%effect_start_fade
+%effect_start_mosaic
+%effect_start_zoomrotate
+%effect_start_rotate
+%effect_start_zoom
+%effect_start_bgbase
+%effect_set_raster_theta
+%effect_set_raster_scale
+%effect_set_raster_delta
+%effect_set_blend
+%effect_set_fade
+%effect_set_mosaic
+%effect_set_zoomrotate
+%effect_set_rotate
+%effect_set_zoom
+%effect_set_bgbase
+%effect_wait
+%effect_jump_loop
+%effect_set_loop
+%effect_def_end
+%effect_def_begin
+
+
+
+
+
+"preprocessor" commands:
+these affect the flow of compilation itself
+
+!if
+!elseif
+!elif
+!endif
+!define
+
+all !if can do is check if something was defined with !define
+
+
+
+
+
+control commands:
+(todo: find the defaults for string configuration)
+
+%label LAB
+creates a label here that can be used by jump/call
+
+%equ NAME NUM
+numerical equate
+
+%equstr NAME STR
+string equate
+
+%set_sysdefault_effect [d]
+i think this one is supposed to be "disable/enable" but all it checks is if the first character is 'd'
+
+%set_sysdefault_textwait NUM
+must be 1..9
+
+%set_sysdefault_windowfade NUM
+must be 1..$0f
+
+%set_sysdefault_keywaitmode s/d/p
+"d" stands for "default" but again all it checks is the first character
+
+%set_sysdefault_bgmvolume NUM
+must be 0..$3b
+
+%set_sysdefault_autosleep NUM
+must be 0..$3b
+
+%netinfo STR
+the argument is a 32-character hexadecimal hash of some kind
+even if it is removed or changed, the rom still seems to work ok
+
+%script_version NUM NUM
+first arg is major, second is minor
+e.g. version 1.0 would be "%script_version 1 0"
+this doesn't seem to be used
+
+%axaka_inst_table STR
+arg is the name of the INST file the game will use
+
+%font_data STR
+arg is the name of the MFO file the game will use
+
+%rom_gamename STR
+%rom_gameinitial STR
+%rom_makercode STR
+%rom_version NUM
+sets the information that will be in the output rom header
+
+%str_savetitle STR
+%str_loadtitle STR
+sets the title of the save/load menus
+
+%str_saveheader STR
+sets the name of each save in the save/load menus. higurashi uses "記録" (record) but it could be stylised to fit the game
+
+%str_resumemsg STR
+sets the message that will be shown on the "load autosave" menu on reset
+
+%str_overwritemsg STR
+sets the message that will be shown if the user overwrites his save file? but the game doesn't show any..... probably it only is shown if it is defined
+
+%str_yesno STR
+pretty obvious, but not sure how it's formatted
+
+%str_sysmenutitle STR
+sets the system menu title. higurashi has it intentionally blank
+
+%str_systemmenu STR
+???
+
+%str_systemmenu_nosave STR
+???
+
+%systemmenu_cmds ????
+
+%systemmenu_nosave_cmds ????
+
+%dummy
+%return
+%view
+%skip
+%hist
+%save
+%load
+%setting
+%title
+%exit
+%reset
+%sleep
+these commands are all ignored and do not cause an error. perhaps they existed in old versions but were dummied out
+some commands do exist now (e.g. return, title), but their real handlers check for them first so it does no harm
+
+
+
+
+commands that generate script code:
+
+
+$00 - %end
+
+$01 - %title
+
+$02 - %init_savedata
+
+$03 - %ignore_skip on/off
+"on" is 1, "off" is 0. anything else is an error
+
+$04 - %set_titlestr STR
+
+$05 - %loadmenu
+
+$06 - %checksign
+
+$07 - %is_emulated
+
+$08 - %inputkey NUM
+must be 0..1
+
+$09 - %nextkey
+
+$0a - %backlog on/off
+
+$0b - %sysmenu on/off
+
+
+
+$10 - %set_bg STR
+$11 - %set_bg NUM
+$12 - %set_bg COL
+yes, that's a NUM and not a VAR
+
+$13 - %add_char NUM STR [STR] [NUM/VAR] [NUM/VAR]
+$14 - %add_char NUM NUM NUM [NUM/VAR] [NUM/VAR]
+valid layers are 0..7
+
+$15 - %remove_char NUM
+$16 - %remove_char all
+
+$19 - %set_char_base l/c
+'l' is 1 and 'c' is 0
+
+$1a - %hide_char NUM
+$1b - %show_char NUM
+
+$1e $0x - %move_char_offset NUM NUM/VAR NUM/VAR
+$1e $8x - %move_char NUM NUM/VAR NUM/VAR
+
+$1f - %swap_char NUM NUM [i/p]
+i = images, p = positions, if neither is specified the default is both
+
+
+
+$20 - %wait NUM
+$21 - %wait NUM noskip
+$22 - %wait NUM force
+NUM is divided by 2 before being compiled
+large values are supported by placing sequential commands, but all "extra" waits are always skippable regardless of the setting given
+
+$23 - %reset_timer
+
+$24 - %wait_timer NUM
+$25 - %wait_timer NUM noskip
+$26 - %wait_timer NUM force
+
+$27 - %set_effect_wait NUM
+
+$28 - %set_win_effect_wait NUM
+
+$29 - %set_text_wait NUM
+
+$2a - %autoclick NUM
+
+$2b $00 - %wait_till_music_end [noskip/force]
+$2b $01/$02 - %wait_till_adpcm_end NUM [noskip/force]
+$2b $03 - %wait_till_pcm_end [noskip/force]
+$2b $04 - %wait_till_effect_end [noskip/force]
+valid channel numbers (for adpcm) are 1..2
+
+
+
+$30 - %music_play STR [noloop]
+$31 - %music_play NUM [noloop]
+yes, that is a NUM, not a VAR. it must be $00..$ff
+
+$32 - %music_stop
+$33 - %music_fade
+$34 - %music_fade_wait
+
+$35 - %pcm_play STR [noloop/loop/wait/waitnoskip/waitforce]
+$36 - %pcm_play NUM [noloop/loop/wait/waitnoskip/waitforce]
+anything unrecognized acts as "noloop"
+
+$37 - %pcm_stop
+
+$39 - %movie_play STR [loop]
+$3a - %movie_play NUM [loop]
+
+$3b - %adpcm_play NUM STR [noloop/loop/wait/waitnoskip/waitforce]
+$3c - %adpcm_play NUM NUM [noloop/loop/wait/waitnoskip/waitforce]
+acceptable channel values are 0..2
+
+$3d - %adpcm_stop NUM
+
+$3e - %is_music_playing
+$3f $00 - %is_pcm_playing
+$3f $01/$02 - %is_adpcm_playing NUM
+acceptable channel numbers are 1..2
+
+
+
+$41 - %shake_x NUM NUM
+$42 - %shake_y NUM NUM
+wave time must be nonzero and speed must be 1..$ff
+
+$43 - %show_text
+$44 - %hide_text
+
+$45 - %set_textcolor NUM
+color index must be 1..7
+
+$46 - %set_textcolorpalette NUM COL
+color index must be 1..7
+
+$47 - %set_textmode NUM
+
+$48 - %set_textwinframe STR
+
+$49 - %clear_text
+
+$4a - %shake_rnd NUM NUM NUM NUM
+
+$4b - %set_cursor STR
+
+$4c - %graphic_on
+
+
+
+(the left side is the destination variable)
+$50/$57 - %set_var VAR NUM/VAR
+
+$51 - %set_addr VAR STR
+this actually puts a file id in VAR
+
+$52/$5c - %add_var VAR NUM/VAR
+$52/$5d - %sub_var VAR NUM/VAR
+yes, they do share the same opcode- "sub constant" is compiled as "add negative constant"
+
+$53 - %inc_var VAR
+$54 - %dec_var VAR
+
+$55 - %init_localvar
+$56 - %init_globalvar
+
+$58/$5f - %set_rnd_var VAR NUM/VAR NUM/VAR
+both min and max must be the same type
+
+$59/$5e - %bit_var VAR a/&/o/|/^/x/</>/asl/asr NUM/VAR
+"a" and "&" are and, "o" and "|" are or, "^" and "x" are xor, "<" and "asl" are left shift, ">" and "asr" are right shift
+aside from asl and asr only the first character is checked
+
+$5a - %neg_var VAR
+
+$5b - %get_complete_value VAR
+
+
+
+$70 - %print_dec VAR
+$71 - %print_dec16 VAR
+$72 - %print_hex VAR
+$73 - %print_hex16 VAR
+
+
+
+$80 -
+%select_begin
+choices
+as textlines
+one line per choice
+%select_end
+
+$81 - %jump LAB
+$82 - %jump_if COND LAB
+"jumpif" is also acceptable
+
+$83 - %call LAB
+$84 - %call_if COND LAB
+"callif" is also acceptable
+
+$85 - %return
+$8f - %return_if COND
+"returnif" is NOT acceptable
+
+$87 - %table_jump VAR LAB...
+
+$88 - %table_call VAR LAB...
+
+
+
+
+$90 - %gui_select_begin
+$91 - %gui_select_end
+
+$92 - %gui_button NUM NUM NUM NUM NUM
+button id must be 1..$28
+x position must be 0..$ef
+y position must be 0..$9f
+xpos + width must not be greater than $f0
+ypos + height must not be greater than $a0
+
+$93 - %gui_move_ud NUM...
+$94 - %gui_move_lr NUM...
+
+$95 - %gui_disable NUM
+
+$96 - %gui_initialselect NUM/VAR
+
+$97 - %gui_mode NUM NUM NUM NUM
+
+(this command does not actually exist in the gba-side code)
+$98 - %gui_effect NUM NUM
+
+$99 - %gui_soundeffect NUM STR
+num must be 0..1
+
+
+
+
+$a0 - %d_load NUM STR
+$a1 - %d_load NUM NUM
+$a2 - %d_load NUM COL
+
+$a3 - %d_copy NUM NUM NUM NUM NUM NUM NUM NUM
+x/y/width/height have the same restrictions as %gui_button
+
+$a4 - %d_draw NUM NUM NUM
+
+
+
+$b0-$bf - %game_uniq_cmd NUM etc.
+this is clearly meant as a reserved space for a game to implement its own custom commands. the first arg is the low nybble of the command id.
+higurashi doesn't use this at all (thankfully) so i won't bother looking into it
+
+
+
+$c0 - %softreset
+
+$c1 - %sleep
 
 
 

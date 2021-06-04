@@ -118,8 +118,8 @@ $01 - delete autosave and define reset label here
 $02 - delete all saved games
 $03 - allow/disallow skipping
     byte - zero to allow, nonzero to disallow
-$04 - configure menu
-    null-terminated string - options? only the first char seems to matter, it decides which save/load messages to use?
+$04 - set game title
+    null-terminated string - title
 $05 - show load game menu
 
 $06 - return nonzero if rom checksum fails, 0 if not
@@ -182,8 +182,8 @@ $18 - ??? set $3002d98
             1: value is $18000
             2: value is $58000 | next halfword
     half, ONLY IF previous byte was 2
-$19 - ??? set bool $3001f64
-    byte - value
+$19 - set character portrait positioning base
+    byte - 0 = left, 1 = center
 
 $1a - hide character portrait
     byte - layer
@@ -240,8 +240,8 @@ $2a - make text progress automatically
 $2b - wait for a variety of conditions to be false
     byte - condition to check
             0: wait until no music playing
-            1: wait until no sound effect playing on channel 0
-            2: wait until no sound effect playing on channel 1
+            1: wait until no sound effect playing on channel 1
+            2: wait until no sound effect playing on channel 2
             3: wait until no sample playing on fifo b
             4: wait until special bg effects are done
     byte - wait mode
@@ -283,7 +283,7 @@ $3a - play a movie
     byte - zero for no loop, nonzero for loop
 $3b - play sound effect
     half - file id
-    byte -  bits 7-4: channel
+    byte -  bits 7-4: channel (0 = whichever is available, otherwise the number)
             bits 3-0:
                 0: play sample once
                 1: loop sample
@@ -292,7 +292,7 @@ $3b - play sound effect
                 4: unskippable
 $3c - play sound effect
     byte - variable of 16-bit file id
-    byte -  bits 7-4: channel
+    byte -  bits 7-4: channel (0 = whichever is available, otherwise the number)
             bits 3-0:
                 0: play sample once
                 1: loop sample
@@ -300,12 +300,12 @@ $3c - play sound effect
                 3: button-end-able wait until sample finishes
                 4: unskippable
 $3d - stop sfx channel(s)
-    byte - 0 for both, 1 for channel 0, 2 for channel 1
+    byte - 0 for both, 1 for channel 1, 2 for channel 2
 $3e - return 1 if music is playing, else 0
 $3f - return 1 if true, else 0
     byte -  0: sound fifo b enabled
-            1: sfx playing on channel 0
-            2: sfx playing on channel 1
+            1: sfx playing on channel 1
+            2: sfx playing on channel 2
 
 
 
@@ -319,8 +319,8 @@ $42 - y-wise screen wave
 $43 - show text layer
 $44 - hide text layer
 $45 - set text color
-    byte - color
-        0: user-definable color (if it's never specified, black)
+    byte - color index (note: the colors below are the defaults)
+        0: black
         1: white
         2: red
         3: green
@@ -328,7 +328,8 @@ $45 - set text color
         5: yellow
         6: magenta
         7: cyan
-$46 - set user-definable color
+$46 - set text color palette
+    byte - color index
     half - color in gba palette format
 
 $47 - set game mode
@@ -430,7 +431,7 @@ $82 - conditionally goto
 $83 - gosub (can be nested up to 64 times)
     half - if < $8000, label id, otherwise lower 15 bits is a signed distance from the next command
 $84 - conditionally gosub
-    compari son data - see comparison reference
+    comparison data - see comparison reference
     half - if < $8000, label id, otherwise lower 15 bits is a signed distance from the next command
 
 $85 - return from gosub
