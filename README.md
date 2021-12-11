@@ -29,7 +29,7 @@ I will update the repository if a new port happens to be discovered that the too
 
 It is actually possible to build a semi-working translated Higurashi ROM with what you see here. Just keep in mind the following issues:
 * Some text is completely untranslated, due to no direct equivalent existing in the 07th-Mod scripts. Some lines may appear to be "randomly" untranslated, because the 07th-Mod Japanese line has a few characters difference compared to the original.
-* The 07th-Mod English text uses some control codes <enclosed in these>, which aren't cleaned out.
+* The 07th-Mod English text uses some control codes `<enclosed in these>`, which aren't cleaned out.
 * Text rendering sucks, the characters are too wide, fixed-width, and there's no word wrapping. You can see in `ascfont.xcf` the font I wanted to implement.
 
 Just for fun, I've included a BPS-format patch. It was created from the commonly-available, protected ROM (CRC32 `3C2F7D28`), but there's really no reason it shouldn't work on any dump of the game out there. This patch comes pre-cracked and you should not run the crack tool on it.
