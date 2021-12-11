@@ -273,7 +273,7 @@ $0b - %sysmenu on/off
 $10 - %set_bg STR
 $11 - %set_bg NUM
 $12 - %set_bg COL
-yes, that's a NUM and not a VAR
+yes, that's (syntactically) a NUM and not a VAR
 
 $13 - %add_char NUM STR [STR] [NUM/VAR] [NUM/VAR]
 $14 - %add_char NUM NUM NUM [NUM/VAR] [NUM/VAR]
@@ -326,7 +326,7 @@ valid channel numbers (for adpcm) are 1..2
 
 $30 - %music_play STR [noloop]
 $31 - %music_play NUM [noloop]
-yes, that is a NUM, not a VAR. it must be $00..$ff
+yes, that is (syntactically) a NUM, not a VAR. it must be $00..$ff
 
 $32 - %music_stop
 $33 - %music_fade

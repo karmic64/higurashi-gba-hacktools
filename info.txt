@@ -54,6 +54,22 @@ save slots start at $0200, and each one is $0800 bytes long
 there are 9 slots, but the last one is reserved for autosaves
 
 
+per save file:
+$000-$0ff: save-local variables
+$100-$1ff: script call stack
+$200-$23f: ??? (copied from $3002388+)
+$240-$33f: backlog buffer
+$340-$3bf: backlog page start coordinates
+$3c0-$3e1: misc game state vars
+$3e2-$3f1: text palette
+$3f4-$3f7: adv mode window pointer
+$3f8-$3fb: cursor pointer
+$3fc-$563: onscreen text buffer
+$564-$567: background image pointer
+$568-$5e7: character portrait table
+$5e8-$5eb: ???? (copied from $3002d98)
+
+
 
 
 

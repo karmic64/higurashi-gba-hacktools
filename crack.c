@@ -96,7 +96,8 @@ int main(int argc, char *argv[])
     fread(buf, 1, fsize, f);
     fclose(f);
     
-    if (fsize < 0x100 || memcmp(initcode, buf+0xc0, sizeof(initcode)))
+    /* code is at $c4 in to heart 2 */
+    if (fsize < 0x100 || (memcmp(initcode, buf+0xc0, sizeof(initcode)) && memcmp(initcode, buf+0xc4, sizeof(initcode))))
     {
         puts("File is not a valid ROM");
         return EXIT_FAILURE;

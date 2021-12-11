@@ -72,6 +72,20 @@ comments start with ;
 */
 
 
+/* levenshtein distance is slow so we use a much simpler way of finding "close enough" strings */
+unsigned int memdist(char *s1, char *s2, unsigned int siz)
+{
+    unsigned int dist = 0;
+    
+    for (unsigned int i = 0; i < siz; i++)
+    {
+        if (s1[i] != s2[i]) dist++;
+    }
+    
+    return dist;
+}
+
+
 
 int main(int argc, char *argv[])
 {
@@ -99,7 +113,8 @@ int main(int argc, char *argv[])
     size_t totalsize = 0;
     size_t *jpstrings = malloc(strings * sizeof(*jpstrings));
     size_t *enstrings = malloc(strings * sizeof(*enstrings));
-    unsigned int *stringsizes = malloc(strings * sizeof(*stringsizes) * 2);
+    unsigned int *jpsizes = malloc(strings * sizeof(*jpsizes));
+    unsigned int *ensizes = malloc(strings * sizeof(*ensizes));
     for (unsigned int i = 0; i < strings; i++)
     {
         unsigned int jpsize = fgetvnum(f);
@@ -112,27 +127,30 @@ int main(int argc, char *argv[])
         }
         /* +1 because we add nulls (which don't exist in the index file) */
         jpstrings[i] = totalsize;
-        totalsize += jpsize + 1;
+        totalsize += jpsize;
         enstrings[i] = totalsize;
-        totalsize += ensize + 1;
-        stringsizes[i*2] = jpsize;
-        stringsizes[i*2 + 1] = ensize;
+        totalsize += ensize;
+        jpsizes[i] = jpsize;
+        ensizes[i] = ensize;
     }
     char *stringbuf = malloc(totalsize);
     size_t i = 0;
-    for (unsigned int str = 0; str < strings*2; str++)
+    for (unsigned int str = 0; str < strings; str++)
     {
-        fread(stringbuf+i, 1, stringsizes[str], f);
+        unsigned int jpsize = jpsizes[str];
+        unsigned int ensize = ensizes[str];
+        
+        fread(stringbuf+i, 1, jpsize, f);
+        i += jpsize;
+        fread(stringbuf+i, 1, ensize, f);
+        i += ensize;
         if (feof(f))
         {
             fclose(f);
             puts("Unexpected end-of-file while reading strings");
             return EXIT_FAILURE;
         }
-        i += stringsizes[str];
-        stringbuf[i++] = 0;
     }
-    free(stringsizes);
     fclose(f);
     
     
@@ -220,11 +238,14 @@ int main(int argc, char *argv[])
                         {
                             while (!foundflag)
                             {
-                                if (jpstrings[huntstr] != -1 && !strncmp(stringbuf+jpstrings[huntstr], linebuf+i, validlen))
+                                unsigned jpsize = jpsizes[huntstr];
+                                if (jpstrings[huntstr] != -1 &&
+                                    jpsize == validlen &&
+                                    memdist(stringbuf+jpstrings[huntstr], linebuf+i, jpsize) <= 4)
                                 {
                                     /* found string */
                                     char *enstr = stringbuf+enstrings[huntstr];
-                                    for (int i = 0; i < strlen(enstr); i++)
+                                    for (int i = 0; i < ensizes[huntstr]; i++)
                                     {
                                         char c = enstr[i];
                                         if (DOUBLEBYTE(c))
@@ -253,7 +274,7 @@ int main(int argc, char *argv[])
                                     strsleft--;
                                 }
                                 if (++huntstr == strings) huntstr = 0;
-                                if (huntstr == str)
+                                if (!foundflag && huntstr == str)
                                 {
                                     /* not found, output string as-is */
                                     fwrite(linebuf+i, 1, validlen, outf);
