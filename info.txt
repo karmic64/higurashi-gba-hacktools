@@ -673,8 +673,8 @@ $82-$83 - set percussion samples for channel 4/5
 the actual music data follows:
 $00 - wait
     byte - music speed ticks
-$01 - loop
-$02 - loop only if enabled when song was inited
+$01 - set loop point here
+$02 - loop
 $03 - set music tick speed
     24-bit value
 
@@ -721,7 +721,9 @@ for each instrument:
     word - offset to sample data
     word - length of start section of sample (if 0, the entire sample is looped)
     word - length of loop section of sample (if 0, the sample does not loop)
-    word - sample base rate (not sure what unit, or what note)
+    word - middle c sample rate
+            freq in hz = 21028 * (this value / $10000)
+            this value = (freq in hz / 21028) * $10000
 
 sample data is signed 8-bit pcm
 
