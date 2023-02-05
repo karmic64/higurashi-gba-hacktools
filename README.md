@@ -20,6 +20,8 @@ Additionally, the protection-killing tool is (as far as I know) 100% working. It
 * Higurashi no Naku Koro ni
 * Kagetsu Touya
 * Kimi ga Nozomu Eien
+* Koibito Double ONE
+* Suika (doesn't have any emulator protection code)
 * To Heart 2
 * Tsukihime
 
