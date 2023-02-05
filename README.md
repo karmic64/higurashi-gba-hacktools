@@ -15,6 +15,7 @@ This repository may still be interesting to technically-minded people, as the re
 
 Additionally, the protection-killing tool is (as far as I know) 100% working. It has been confirmed to work with the following ports:
 * Air
+* Bittersweet Fools
 * Cross Channel
 * Hajimete no Orusuban (doesn't have any emulator protection code)
 * Higurashi no Naku Koro ni
