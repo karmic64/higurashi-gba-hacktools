@@ -150,7 +150,7 @@ void scandir(char *dirname)
             while (1)
             {
                 status = iconv(ic, &inptr, &inleft, &outptr, &outleft);
-                if (status != -1) break;
+                if (status != (size_t)-1) break;
                 /* iconv errors when encountering a modified ascii char */
                 if (*inptr != '\\' && *inptr != '~') break;
                 *(outptr++) = *(inptr++);
@@ -158,9 +158,9 @@ void scandir(char *dirname)
                 outleft--;
             }
             
-            if (status == -1)
+            if (status == (size_t)-1)
             {
-                printf("Conversion failure at 0x%llX: %s\n", inptr-srcbuf, strerror(errno));
+                printf("Conversion failure at 0x%tX: %s\n", inptr-srcbuf, strerror(errno));
             }
             else
             {
