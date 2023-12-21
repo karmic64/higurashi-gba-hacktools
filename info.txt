@@ -631,7 +631,8 @@ whenever you repaint the display, you can use an effect to make a smoother trans
 
 ----------- sound info ------------
 
-the internal output sample rate is 16780000 / ($10000 - $fce2) = 21028Hz
+the internal output sample rate is 16777216 / ($10000 - $fce2 - 16) = 21454Hz
+the game sets the timer to $fce2. not sure where the 16-cycle thing comes from
 
 music may use the following channels:
 4 pitchable "melodic" sample channels (internally 0-3)
@@ -652,10 +653,10 @@ so, given the speed value, the formula to calculate the tick rate is 59.737 * (s
 
 
 music data header:
-half - offset to music init data
-half - ?
+half - offset to music init data (always 0x0c)
+half - ? (always 0x60)
 word - music tick speed
-word - ?
+word - length of song in ticks
 
 music init data?:
 $02 - end
@@ -719,11 +720,11 @@ instrument list format:
 all offsets are relative to the start of the list
 for each instrument:
     word - offset to sample data
-    word - length of start section of sample (if 0, the entire sample is looped)
-    word - length of loop section of sample (if 0, the sample does not loop)
+    word - length of entire sample
+    word - length of looped section of sample (if 0, the sample does not loop)
     word - middle c sample rate
-            freq in hz = 21028 * (this value / $10000)
-            this value = (freq in hz / 21028) * $10000
+            freq in hz = 21454 * (this value / $10000)
+            this value = (freq in hz / 21454) * $10000
 
 sample data is signed 8-bit pcm
 
@@ -734,7 +735,7 @@ sound effect format:
 byte - encoding format?
 byte - ?
 word - length of audio data
-xx bytes - audio data (some kind of ADPCM? silence is encoded as endless $08. sample rate is 21028 / 4 = 5257Hz)
+xx bytes - audio data (some kind of ADPCM? silence is encoded as endless $08. sample rate is 21454 / 4 = 5364Hz)
 
 
 
