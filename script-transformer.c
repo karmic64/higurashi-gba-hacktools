@@ -239,13 +239,13 @@ int main(int argc, char *argv[])
                             while (!foundflag)
                             {
                                 unsigned jpsize = jpsizes[huntstr];
-                                if (jpstrings[huntstr] != -1 &&
+                                if (jpstrings[huntstr] != (size_t)-1 &&
                                     jpsize == validlen &&
                                     memdist(stringbuf+jpstrings[huntstr], linebuf+i, jpsize) <= 4)
                                 {
                                     /* found string */
                                     char *enstr = stringbuf+enstrings[huntstr];
-                                    for (int i = 0; i < ensizes[huntstr]; i++)
+                                    for (size_t i = 0; i < ensizes[huntstr]; i++)
                                     {
                                         char c = enstr[i];
                                         if (DOUBLEBYTE(c))
@@ -270,7 +270,7 @@ int main(int argc, char *argv[])
                                     }
                                     
                                     foundflag++;
-                                    jpstrings[huntstr] = -1;
+                                    jpstrings[huntstr] = (size_t)-1;
                                     strsleft--;
                                 }
                                 if (++huntstr == strings) huntstr = 0;
