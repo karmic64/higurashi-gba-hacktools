@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
+#include <errno.h>
 
 
 #define get16(p) ((uint16_t)((*(uint8_t*)(p)) | ((*(((uint8_t*)(p))+1)) << 8)))
